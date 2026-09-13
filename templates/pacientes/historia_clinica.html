@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Historia Clínica — {{ paciente.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Patient Header Card -->
+    <div class="glass-panel p-6 rounded-2xl border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div class="space-y-1">
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold text-white">{{ paciente.nombre_completo }}</h1>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                    DNI: {{ paciente.dni }}
+                </span>
+            </div>
+            <p class="text-xs text-slate-400">
+                Teléfono: <span class="text-slate-200">{{ paciente.telefono }}</span> | 
+                Email: <span class="text-slate-200">{{ paciente.email|default:"No informado" }}</span>
+            </p>
+            <p class="text-xs text-slate-400">
+                Obra Social: <span class="text-cyan-400 font-semibold">{{ paciente.obra_social.nombre|default:"Particular" }}</span>
+                {% if paciente.numero_afiliado %}(N° Afiliado: {{ paciente.numero_afiliado }}){% endif %}
+            </p>
+        </div>
+
+        <div class="flex flex-col items-end space-y-1 text-right text-xs">
+            <span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
+                <i class="fa-solid fa-shield-halved mr-1"></i> Consentimiento Ley 25.326 OK
+            </span>
+            <span class="text-[10px] text-slate-500">Formato Legal AR Ley 26.529</span>
+        </div>
+    </div>
+
+    <!-- New Clinical Entry Form -->
+    <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-pen-to-square text-cyan-400"></i> Nueva Evolución Médica
+        </h2>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Motivo de Consulta *</label>
+                    <input type="text" name="motivo_consulta" required placeholder="Ej: Control de presión, dolor de garganta..." 
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Diagnóstico Principal *</label>
+                    <input type="text" name="diagnostico" required placeholder="Ej: Hipertensión arterial esencial..." 
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Notas de Evolución y Examen Físico</label>
+                <textarea name="notas_evolucion" rows="3" placeholder="Signos vitales, examen físico, antecedentes o detalles observados..." 
+                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Tratamiento e Indicaciones Prescritas</label>
+                <textarea name="tratamiento_prescrito" rows="2" placeholder="Medicamentos, dosis, pautas de alarma o estudios solicitados..." 
+                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"></textarea>
+            </div>
+
+            <div class="flex justify-end">
+                <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar en Historia Clínica
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Past Entries History Timeline -->
+    <div class="space-y-4">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-cyan-400"></i> Historial de Evoluciones Registraras
+        </h2>
+
+        {% for h in historias %}
+        <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3 relative overflow-hidden">
+            <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                    <span class="font-bold text-white text-sm">{{ h.fecha_consulta|date:"d/m/Y H:i" }} hs</span>
+                    <span class="text-slate-400 text-xs">— Atendido por Dr/a. {{ h.medico.nombre_completo }}</span>
+                </div>
+                <span class="text-[10px] text-slate-500 uppercase tracking-wider font-mono">ID HC #{{ h.id }}</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 space-y-1">
+                    <span class="font-semibold text-slate-400 block">Motivo de Consulta:</span>
+                    <p class="text-slate-200">{{ h.motivo_consulta }}</p>
+                </div>
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 space-y-1">
+                    <span class="font-semibold text-cyan-400 block">Diagnóstico:</span>
+                    <p class="text-white font-medium">{{ h.diagnostico }}</p>
+                </div>
+            </div>
+
+            {% if h.notas_evolucion %}
+            <div class="text-xs space-y-1 bg-slate-900/40 p-3 rounded-xl border border-slate-800/50">
+                <span class="font-semibold text-slate-400 block">Notas de Evolución:</span>
+                <p class="text-slate-300 leading-relaxed">{{ h.notas_evolucion }}</p>
+            </div>
+            {% endif %}
+
+            {% if h.tratamiento_prescrito %}
+            <div class="text-xs space-y-1 bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/20">
+                <span class="font-semibold text-emerald-400 block">Tratamiento & Prescripción:</span>
+                <p class="text-emerald-200 leading-relaxed">{{ h.tratamiento_prescrito }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="glass-panel p-8 rounded-2xl text-center text-slate-500 text-xs">
+            <i class="fa-solid fa-folder-open text-3xl mb-2 block text-slate-600"></i>
+            No hay registros de evoluciones previas para este paciente. Use el formulario superior para crear la primera entrada.
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

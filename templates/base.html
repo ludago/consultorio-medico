@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Consultorio Médico San Lucas{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        medical: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Modern scrollbar and glassmorphism styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full flex flex-col font-sans antialiased bg-slate-950 text-slate-100">
+
+    <!-- Topbar Navigation -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-4 py-3 shadow-lg">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            
+            <!-- Brand Logo -->
+            <a href="{% url 'home' %}" class="flex items-center space-x-3 group">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/20 group-hover:scale-105 transition-transform">
+                    <i class="fa-solid font-bold text-xl fa-heart-pulse"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-lg text-white tracking-tight group-hover:text-cyan-400 transition-colors">San Lucas</span>
+                    <span class="block text-xs text-slate-400 font-medium">Gestión de Consultorios</span>
+                </div>
+            </a>
+
+            <!-- Nav Links -->
+            {% if user.is_authenticated %}
+            <nav class="hidden md:flex items-center space-x-2">
+                <a href="{% url 'recepcion_dashboard' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-days text-cyan-400"></i> Recepción
+                </a>
+                <a href="{% url 'medico_agenda' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-user-doctor text-emerald-400"></i> Agenda Médico
+                </a>
+                <a href="{% url 'turnero_pantalla' %}" target="_blank" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-tv text-amber-400"></i> Turnero TV
+                </a>
+                {% if user.is_staff %}
+                <a href="/admin/" target="_blank" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-indigo-400"></i> Admin
+                </a>
+                {% endif %}
+            </nav>
+            {% endif %}
+
+            <!-- User Menu -->
+            <div class="flex items-center space-x-3">
+                {% if user.is_authenticated %}
+                <div class="flex items-center space-x-3 pl-3 border-l border-slate-800">
+                    <div class="text-right hidden sm:block">
+                        <span class="block text-xs font-semibold text-white">{{ user.get_full_name|default:user.username }}</span>
+                        <span class="block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                            {% if user.perfil_medico %}Dr. {{ user.perfil_medico.nombre_completo }}{% else %}Recepción / Admin{% endif %}
+                        </span>
+                    </div>
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800/80 rounded-lg transition-colors" title="Cerrar Sesión">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <a href="{% url 'login' %}" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-semibold shadow-md shadow-cyan-600/30 transition-all">
+                    Iniciar Sesión
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Body -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 py-4 px-6 text-center text-xs text-slate-500 bg-slate-950">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+            <span>&copy; 2026 Consultorio Médico San Lucas — Cumplimiento Ley 25.326 & Ley 26.529 (Argentina)</span>
+            <span class="text-slate-400">Modo Demo (Cupo Habilitado: 2 Médicos)</span>
+        </div>
+    </footer>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="10"> <!-- Auto refresh cada 10 segundos -->
+    <title>Turnero — Sala de Espera | {{ config.nombre_consultorio }}</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="h-full flex flex-col justify-between p-6 lg:p-10 bg-slate-950 text-white select-none overflow-hidden">
+
+    <!-- Header TV Banner -->
+    <header class="flex items-center justify-between border-b border-slate-800 pb-6">
+        <div class="flex items-center space-x-4">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-3xl shadow-xl shadow-cyan-500/30">
+                <i class="fa-solid fa-hospital text-3xl"></i>
+            </div>
+            <div>
+                <h1 class="text-3xl lg:text-4xl font-extrabold tracking-tight text-white">{{ config.nombre_consultorio }}</h1>
+                <p class="text-lg text-cyan-400 font-semibold">Pantalla de Sala de Espera</p>
+            </div>
+        </div>
+
+        <div class="text-right bg-slate-900/80 px-6 py-3 rounded-2xl border border-slate-800 shadow-inner">
+            <span id="live-clock" class="text-3xl lg:text-4xl font-mono font-bold text-cyan-400 tracking-wider">00:00:00</span>
+            <span class="block text-xs text-slate-400 font-medium uppercase mt-0.5">Hora Actual</span>
+        </div>
+    </header>
+
+    <!-- Main TV Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 my-auto py-4">
+
+        <!-- Column 1: Called Patients (NOW CALLING) -->
+        <div class="lg:col-span-7 space-y-4">
+            <div class="flex items-center gap-3">
+                <span class="w-4 h-4 rounded-full bg-emerald-400 animate-ping"></span>
+                <h2 class="text-2xl font-black uppercase text-emerald-400 tracking-wider">
+                    <i class="fa-solid fa-bullhorn mr-2"></i> Pacientes Llamados AHORA
+                </h2>
+            </div>
+
+            <div class="space-y-4">
+                {% for t in turnos_atendiendo %}
+                <div class="p-6 rounded-3xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-900 border-2 border-emerald-500/50 shadow-2xl flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-widest text-emerald-400 block mb-1">PACIENTE</span>
+                        <h3 class="text-3xl lg:text-4xl font-extrabold text-white">{{ t.paciente.nombre_completo }}</h3>
+                        <p class="text-lg text-slate-300 font-semibold mt-1">Con Dr/a. {{ t.medico.nombre_completo }}</p>
+                    </div>
+
+                    <div class="text-right bg-emerald-500 text-slate-950 px-6 py-4 rounded-2xl shadow-lg">
+                        <span class="block text-xs font-black uppercase tracking-wider text-slate-900">DIRIGIRSE A</span>
+                        <span class="text-2xl lg:text-3xl font-black tracking-tight block">
+                            {{ t.consultorio.nombre_numero|default:"Consultorio 1" }}
+                        </span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="p-8 rounded-3xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 space-y-2">
+                    <i class="fa-solid fa-user-clock text-4xl text-slate-600 block"></i>
+                    <p class="text-xl font-bold">Sin llamadas activas en este momento</p>
+                    <p class="text-sm">Por favor aguarde su nombre en la lista de espera.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Column 2: Patients in Waiting Room -->
+        <div class="lg:col-span-5 space-y-4">
+            <div class="flex items-center gap-3">
+                <h2 class="text-xl font-extrabold uppercase text-amber-400 tracking-wider">
+                    <i class="fa-solid fa-users mr-2"></i> En Sala de Espera
+                </h2>
+            </div>
+
+            <div class="bg-slate-900/80 rounded-3xl border border-slate-800 p-4 space-y-3 max-h-[50vh] overflow-y-auto">
+                {% for t in turnos_espera %}
+                <div class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-between">
+                    <div>
+                        <h4 class="text-lg font-bold text-white">{{ t.paciente.nombre_completo }}</h4>
+                        <p class="text-xs text-slate-400">Dr/a. {{ t.medico.nombre_completo }}</p>
+                    </div>
+                    <span class="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/30">
+                        {{ t.hora|time:"H:i" }} hs
+                    </span>
+                </div>
+                {% empty %}
+                <p class="p-6 text-center text-slate-500 text-sm">No hay pacientes aguardando en sala de espera.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- TV Footer -->
+    <footer class="border-t border-slate-800 pt-4 flex items-center justify-between text-xs text-slate-400">
+        <span>{{ config.nombre_consultorio }} — {{ config.direccion_consultorio }}</span>
+        <span>Por favor mantenga su teléfono celular en modo silencioso.</span>
+    </footer>
+
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('live-clock').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+</body>
+</html>

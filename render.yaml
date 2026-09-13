@@ -1,0 +1,26 @@
+databases:
+  - name: consultorio-db
+    plan: free
+    databaseName: consultorio_medico
+    user: consultorio_user
+
+services:
+  - type: web
+    plan: free
+    name: consultorio-medico
+    runtime: python
+    buildCommand: './build.sh'
+    startCommand: 'gunicorn config.wsgi:application'
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: consultorio-db
+          property: connectionString
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: 'False'
+      - key: DJANGO_ALLOWED_HOSTS
+        value: '.onrender.com'
+      - key: WEB_CONCURRENCY
+        value: '4'
