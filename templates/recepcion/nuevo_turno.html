@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}Nuevo Turno — Recepción{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3">
+        <a href="{% url 'recepcion_dashboard' %}" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors border border-slate-700">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h1 class="text-xl font-bold text-white">Nuevo Turno</h1>
+            <p class="text-xs text-slate-400">Complete los datos para agendar un turno</p>
+        </div>
+    </div>
+
+    <!-- Mensajes -->
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="p-3 rounded-xl text-sm font-semibold {% if msg.tags == 'success' %}bg-emerald-500/20 text-emerald-300 border border-emerald-500/30{% else %}bg-rose-500/20 text-rose-300 border border-rose-500/30{% endif %}">
+        {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Formulario -->
+    <form method="post" class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-5">
+        {% csrf_token %}
+
+        <!-- Selector Paciente Existente / Nuevo -->
+        <div class="space-y-3">
+            <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Paciente</label>
+            <div class="flex gap-2 mb-2">
+                <button type="button" id="btn_existente" onclick="mostrarPaciente('existente')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-600 text-white border border-cyan-500 transition-all">
+                    Paciente Existente
+                </button>
+                <button type="button" id="btn_nuevo" onclick="mostrarPaciente('nuevo')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-all">
+                    + Nuevo Paciente
+                </button>
+            </div>
+
+            <!-- Paciente Existente -->
+            <div id="panel_existente">
+                <select name="paciente" id="select_paciente" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="">-- Seleccione un paciente --</option>
+                    {% for p in pacientes %}
+                    <option value="{{ p.id }}">{{ p.nombre_completo }} (DNI: {{ p.dni }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Nuevo Paciente -->
+            <div id="panel_nuevo" class="hidden space-y-3">
+                <input type="hidden" name="nuevo_paciente" id="nuevo_paciente_flag" value="0">
+                <input type="text" name="nuevo_nombre" placeholder="Nombre completo"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" name="nuevo_dni" placeholder="DNI"
+                        class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <input type="text" name="nuevo_telefono" placeholder="Teléfono (WhatsApp)"
+                        class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+            </div>
+        </div>
+
+        <!-- Médico -->
+        <div class="space-y-2">
+            <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Médico *</label>
+            <select name="medico" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                <option value="">-- Seleccione un médico --</option>
+                {% for m in medicos %}
+                <option value="{{ m.id }}">Dr/a. {{ m.nombre_completo }} ({% for e in m.especialidades.all %}{{ e.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Sede y Consultorio -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sede</label>
+                <select name="sede" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="">-- Sede --</option>
+                    {% for s in sedes %}
+                    <option value="{{ s.id }}">{{ s.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Consultorio</label>
+                <select name="consultorio" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="">-- Consultorio --</option>
+                    {% for c in consultorios %}
+                    <option value="{{ c.id }}">{{ c.nombre_numero }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Fecha, Hora, Duración -->
+        <div class="grid grid-cols-3 gap-4">
+            <div class="space-y-2">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Fecha *</label>
+                <input type="date" name="fecha" value="{{ fecha_hoy }}" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Hora *</label>
+                <input type="time" name="hora" required
+                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Duración</label>
+                <select name="duracion" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="15">15 min</option>
+                    <option value="20">20 min</option>
+                    <option value="30" selected>30 min</option>
+                    <option value="45">45 min</option>
+                    <option value="60">60 min</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Notas -->
+        <div class="space-y-2">
+            <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Notas (opcional)</label>
+            <textarea name="notas" rows="2" placeholder="Motivo de consulta, observaciones..."
+                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"></textarea>
+        </div>
+
+        <!-- Botón Enviar -->
+        <button type="submit" class="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-cyan-600/30 flex items-center justify-center gap-2 transition-all">
+            <i class="fa-solid fa-calendar-check"></i> Crear Turno
+        </button>
+    </form>
+
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function mostrarPaciente(tipo) {
+    const existente = document.getElementById('panel_existente');
+    const nuevo = document.getElementById('panel_nuevo');
+    const flag = document.getElementById('nuevo_paciente_flag');
+    const btnEx = document.getElementById('btn_existente');
+    const btnNue = document.getElementById('btn_nuevo');
+    const selectPac = document.getElementById('select_paciente');
+
+    if (tipo === 'existente') {
+        existente.classList.remove('hidden');
+        nuevo.classList.add('hidden');
+        flag.value = '0';
+        selectPac.required = true;
+        btnEx.className = 'px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-600 text-white border border-cyan-500 transition-all';
+        btnNue.className = 'px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-all';
+    } else {
+        existente.classList.add('hidden');
+        nuevo.classList.remove('hidden');
+        flag.value = '1';
+        selectPac.required = false;
+        selectPac.value = '';
+        btnNue.className = 'px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-600 text-white border border-cyan-500 transition-all';
+        btnEx.className = 'px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-all';
+    }
+}
+</script>
+{% endblock %}

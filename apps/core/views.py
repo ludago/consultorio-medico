@@ -1,12 +1,13 @@
 import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden
 from django.utils import timezone
 from django.db.models import Q
 
 from apps.configuracion.models import ConfiguracionSistema
-from apps.usuarios.models import Medico, Especialidad, Sede
+from apps.usuarios.models import Medico, Especialidad, Sede, Consultorio
 from apps.pacientes.models import Paciente
 from apps.turnos.models import Turno, EstadoTurno
 from apps.historias_clinicas.models import HistoriaClinica
@@ -60,6 +61,80 @@ def recepcion_dashboard(request):
         'estados': EstadoTurno.choices,
     }
     return render(request, 'recepcion/dashboard.html', context)
+
+@login_required
+def nuevo_turno(request):
+    medicos = Medico.objects.filter(activo=True).prefetch_related('especialidades')
+    pacientes = Paciente.objects.all().order_by('nombre_completo')
+    sedes = Sede.objects.filter(activa=True)
+    consultorios = Consultorio.objects.all().select_related('sede')
+
+    if request.method == 'POST':
+        medico_id = request.POST.get('medico')
+        paciente_id = request.POST.get('paciente')
+        sede_id = request.POST.get('sede')
+        consultorio_id = request.POST.get('consultorio')
+        fecha_str = request.POST.get('fecha')
+        hora_str = request.POST.get('hora')
+        duracion = request.POST.get('duracion', 30)
+        notas = request.POST.get('notas', '')
+
+        nuevo_paciente = request.POST.get('nuevo_paciente')
+        if nuevo_paciente == '1':
+            nombre = request.POST.get('nuevo_nombre', '').strip()
+            dni = request.POST.get('nuevo_dni', '').strip()
+            tel = request.POST.get('nuevo_telefono', '').strip()
+            if nombre and dni and tel:
+                paciente = Paciente.objects.create(
+                    nombre_completo=nombre,
+                    dni=dni,
+                    telefono=tel,
+                )
+                paciente_id = paciente.id
+
+        if medico_id and paciente_id and fecha_str and hora_str:
+            try:
+                fecha = datetime.datetime.strptime(fecha_str, '%Y-%m-%d').date()
+                hora = datetime.datetime.strptime(hora_str, '%H:%M').time()
+
+                turno = Turno(
+                    medico_id=int(medico_id),
+                    paciente_id=int(paciente_id),
+                    sede_id=int(sede_id) if sede_id else None,
+                    consultorio_id=int(consultorio_id) if consultorio_id else None,
+                    fecha=fecha,
+                    hora=hora,
+                    duracion_minutos=int(duracion),
+                    notas=notas,
+                    estado=EstadoTurno.CONFIRMADO,
+                    creado_por=request.user,
+                )
+                turno.save()
+
+                LogAuditoria.objects.create(
+                    usuario=request.user,
+                    accion="CREAR_TURNO",
+                    entidad="Turno",
+                    entidad_id=str(turno.id),
+                    detalles=f"Turno creado: {turno.paciente.nombre_completo} con {turno.medico.nombre_completo} el {fecha} a las {hora_str}",
+                    ip_origen=request.META.get('REMOTE_ADDR', '127.0.0.1')
+                )
+
+                messages.success(request, f'Turno creado para {turno.paciente.nombre_completo} el {fecha_str} a las {hora_str}')
+                return redirect('recepcion_dashboard')
+            except Exception as e:
+                messages.error(request, f'Error al crear turno: {str(e)}')
+        else:
+            messages.error(request, 'Complete todos los campos obligatorios (Médico, Paciente, Fecha, Hora)')
+
+    context = {
+        'medicos': medicos,
+        'pacientes': pacientes,
+        'sedes': sedes,
+        'consultorios': consultorios,
+        'fecha_hoy': datetime.date.today().strftime('%Y-%m-%d'),
+    }
+    return render(request, 'recepcion/nuevo_turno.html', context)
 
 @login_required
 def medico_agenda(request):

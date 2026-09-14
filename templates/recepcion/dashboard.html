@@ -2,6 +2,10 @@
 
 {% block title %}Dashboard de Recepción — Consultorio Médico San Lucas{% endblock %}
 
+{% block extra_head %}
+<meta http-equiv="refresh" content="30">
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
 
@@ -21,7 +25,7 @@
             <a href="{% url 'turnero_pantalla' %}" target="_blank" class="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all shadow-md">
                 <i class="fa-solid fa-tv"></i> Abrir Turnero TV
             </a>
-            <a href="/admin/apps/turnos/turno/add/" target="_blank" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg shadow-cyan-600/30 transition-all">
+            <a href="{% url 'nuevo_turno' %}" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg shadow-cyan-600/30 transition-all">
                 <i class="fa-solid fa-plus"></i> Nuevo Turno
             </a>
         </div>
@@ -167,12 +171,22 @@
                         </td>
                         <td class="p-4 text-center">
                             <div class="flex items-center justify-center gap-1.5">
-                                {% if t.estado != 'EN_ESPERA' and t.estado != 'ATENDIDO' %}
+                                {% if t.estado != 'EN_ESPERA' and t.estado != 'ATENDIDO' and t.estado != 'CANCELADO' %}
                                 <form method="post" action="{% url 'cambiar_estado_turno' t.id %}" class="inline">
                                     {% csrf_token %}
                                     <input type="hidden" name="estado" value="EN_ESPERA">
                                     <button type="submit" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded border border-amber-500/40 text-[11px] font-semibold transition-colors" title="Pasar a Sala de Espera">
                                         <i class="fa-solid fa-bell"></i> Anunciar LLegada
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                {% if t.estado != 'CANCELADO' and t.estado != 'ATENDIDO' %}
+                                <form method="post" action="{% url 'cambiar_estado_turno' t.id %}" class="inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="estado" value="CANCELADO">
+                                    <button type="submit" onclick="return confirm('¿Cancelar este turno?')" class="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded border border-rose-500/30 text-[11px] font-semibold transition-colors" title="Cancelar Turno">
+                                        <i class="fa-solid fa-ban"></i>
                                     </button>
                                 </form>
                                 {% endif %}
