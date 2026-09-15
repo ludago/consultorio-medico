@@ -131,14 +131,17 @@ def nuevo_turno(request):
                 )
                 turno.save()
 
-                LogAuditoria.objects.create(
-                    usuario=request.user,
-                    accion="CREAR_TURNO",
-                    entidad="Turno",
-                    entidad_id=str(turno.id),
-                    detalles=f"Turno creado: {turno.paciente.nombre_completo} con {turno.medico.nombre_completo} el {fecha} a las {hora_str}",
-                    ip_origen=request.META.get('REMOTE_ADDR', '127.0.0.1')
-                )
+                try:
+                    LogAuditoria.objects.create(
+                        usuario=request.user,
+                        accion="CREAR_TURNO",
+                        entidad="Turno",
+                        entidad_id=str(turno.id),
+                        detalles=f"Turno creado: {turno.paciente.nombre_completo} con {turno.medico.nombre_completo} el {fecha} a las {hora_str}",
+                        ip_origen=request.META.get('REMOTE_ADDR', '127.0.0.1')
+                    )
+                except Exception:
+                    pass  # La auditoría no debe bloquear la vista
 
                 messages.success(request, f'Turno creado para {turno.paciente.nombre_completo} el {fecha_str} a las {hora_str}')
                 return redirect('recepcion_dashboard')
@@ -204,14 +207,17 @@ def cambiar_estado_turno(request, turno_id):
             turno.save()
             
             # Auditoría
-            LogAuditoria.objects.create(
-                usuario=request.user,
-                accion="CAMBIAR_ESTADO_TURNO",
-                entidad="Turno",
-                entidad_id=str(turno.id),
-                detalles=f"Cambió estado a {nuevo_estado} para paciente {turno.paciente.nombre_completo}",
-                ip_origen=request.META.get('REMOTE_ADDR', '127.0.0.1')
-            )
+            try:
+                LogAuditoria.objects.create(
+                    usuario=request.user,
+                    accion="CAMBIAR_ESTADO_TURNO",
+                    entidad="Turno",
+                    entidad_id=str(turno.id),
+                    detalles=f"Cambió estado a {nuevo_estado} para paciente {turno.paciente.nombre_completo}",
+                    ip_origen=request.META.get('REMOTE_ADDR', '127.0.0.1')
+                )
+            except Exception:
+                pass  # La auditoría no debe bloquear la vista
             
     next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or '/'
     return redirect(next_url)
@@ -224,14 +230,17 @@ def paciente_historia_clinica(request, paciente_id):
     historias = HistoriaClinica.objects.filter(paciente=paciente).select_related('medico')
     
     # Registrar auditoría de acceso según Ley 26.529
-    LogAuditoria.objects.create(
-        usuario=request.user,
-        accion="VER_HISTORIA_CLINICA",
-        entidad="Paciente",
-        entidad_id=str(paciente.id),
-        detalles=f"Acceso a Historia Clínica de {paciente.nombre_completo} (DNI: {paciente.dni})",
-        ip_origen=request.META.get('REMOTE_ADDR', '127.0.0.1')
-    )
+    try:
+        LogAuditoria.objects.create(
+            usuario=request.user,
+            accion="VER_HISTORIA_CLINICA",
+            entidad="Paciente",
+            entidad_id=str(paciente.id),
+            detalles=f"Acceso a Historia Clínica de {paciente.nombre_completo} (DNI: {paciente.dni})",
+            ip_origen=request.META.get('REMOTE_ADDR', '127.0.0.1')
+        )
+    except Exception:
+        pass  # La auditoría no debe bloquear la vista
 
     user_role = get_user_role(request.user)
     
@@ -249,23 +258,36 @@ def paciente_historia_clinica(request, paciente_id):
         
         medico = getattr(request.user, 'perfil_medico', None) or Medico.objects.filter(activo=True).first()
         
-        hc = HistoriaClinica.objects.create(
-            paciente=paciente,
-            medico=medico,
-            motivo_consulta=motivo,
-            diagnostico=diagnostico,
-            notas_evolucion=notas,
-            tratamiento_prescrito=tratamiento
-        )
+        if not medico:
+            messages.error(request, 'No se encontró un médico válido para registrar la evolución.')
+            return redirect('paciente_historia_clinica', paciente_id=paciente.id)
+        
+        try:
+            hc = HistoriaClinica.objects.create(
+                paciente=paciente,
+                medico=medico,
+                motivo_consulta=motivo,
+                diagnostico=diagnostico,
+                notas_evolucion=notas,
+                tratamiento_prescrito=tratamiento
+            )
 
-        LogAuditoria.objects.create(
-            usuario=request.user,
-            accion="CREAR_HISTORIA_CLINICA",
-            entidad="HistoriaClinica",
-            entidad_id=str(hc.id),
-            detalles=f"Creación de evolución médica para {paciente.nombre_completo}",
-            ip_origen=request.META.get('REMOTE_ADDR', '127.0.0.1')
-        )
+            try:
+                LogAuditoria.objects.create(
+                    usuario=request.user,
+                    accion="CREAR_HISTORIA_CLINICA",
+                    entidad="HistoriaClinica",
+                    entidad_id=str(hc.id),
+                    detalles=f"Creación de evolución médica para {paciente.nombre_completo}",
+                    ip_origen=request.META.get('REMOTE_ADDR', '127.0.0.1')
+                )
+            except Exception:
+                pass  # La auditoría no debe bloquear la vista
+            
+            messages.success(request, 'Evolución médica registrada exitosamente.')
+        except Exception as e:
+            messages.error(request, f'Error al guardar la evolución: {str(e)}')
+        
         return redirect('paciente_historia_clinica', paciente_id=paciente.id)
 
     context = {
