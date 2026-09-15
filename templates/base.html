@@ -68,16 +68,20 @@
             <!-- Nav Links -->
             {% if user.is_authenticated %}
             <nav class="hidden md:flex items-center space-x-2">
+                {% if is_recepcion or is_admin %}
                 <a href="{% url 'recepcion_dashboard' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2">
                     <i class="fa-solid fa-calendar-days text-cyan-400"></i> Recepción
                 </a>
+                {% endif %}
+                {% if is_medico or is_admin %}
                 <a href="{% url 'medico_agenda' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2">
                     <i class="fa-solid fa-user-doctor text-emerald-400"></i> Agenda Médico
                 </a>
+                {% endif %}
                 <a href="{% url 'turnero_pantalla' %}" target="_blank" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2">
                     <i class="fa-solid fa-tv text-amber-400"></i> Turnero TV
                 </a>
-                {% if user.is_staff %}
+                {% if is_admin %}
                 <a href="/admin/" target="_blank" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2">
                     <i class="fa-solid fa-sliders text-indigo-400"></i> Admin
                 </a>
@@ -92,7 +96,11 @@
                     <div class="text-right hidden sm:block">
                         <span class="block text-xs font-semibold text-white">{{ user.get_full_name|default:user.username }}</span>
                         <span class="block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
-                            {% if user.perfil_medico %}Dr. {{ user.perfil_medico.nombre_completo }}{% else %}Recepción / Admin{% endif %}
+                            {% if user_role == 'MEDICO' %}Dr. {{ user.perfil_medico.nombre_completo }}
+                            {% elif user_role == 'RECEPCION' %}Recepción
+                            {% elif user_role == 'ADMIN' %}Administrador
+                            {% elif user_role == 'DEV' %}Desarrollador
+                            {% else %}Usuario{% endif %}
                         </span>
                     </div>
                     <form method="post" action="{% url 'logout' %}">

@@ -13,6 +13,9 @@ python manage.py migrate
 echo "=== Cargando datos demo ==="
 python manage.py seed_demo 2>/dev/null || echo "Datos demo ya cargados o error"
 
+echo "=== Creando perfiles de usuario ==="
+python manage.py crear_perfiles 2>/dev/null || echo "Perfiles ya creados o error"
+
 echo "=== Creando superuser por defecto ==="
 python manage.py shell -c "
 from django.contrib.auth.models import User

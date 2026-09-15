@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 
 from apps.configuracion.models import ConfiguracionSistema
-from apps.usuarios.models import Sede, Consultorio, Especialidad, Medico, MedicoSede
+from apps.usuarios.models import Sede, Consultorio, Especialidad, Medico, MedicoSede, PerfilUsuario
 from apps.pacientes.models import ObraSocial, Paciente
 from apps.turnos.models import Turno, EstadoTurno
 from apps.historias_clinicas.models import HistoriaClinica
@@ -25,25 +25,32 @@ class Command(BaseCommand):
         # 2. Usuarios Base
         # 2.1 Usuario Desarrollador (Acceso Exclusivo a Licencia y Cupos)
         if not User.objects.filter(username='desarrollador').exists():
-            User.objects.create_superuser('desarrollador', 'dev@sistema.com', 'dev123')
-            self.stdout.write(self.style.SUCCESS("[OK] Usuario Desarrollador Creado: desarrollador / dev123"))
+            u_dev = User.objects.create_superuser('desarrollador', 'dev@sistema.com', 'dev123')
+            u_dev.first_name = 'Desarrollador'
+            u_dev.last_name = 'Sistema'
+            u_dev.save()
+            PerfilUsuario.objects.create(user=u_dev, rol='DEV')
+            self.stdout.write(self.style.SUCCESS("[OK] Usuario Desarrollador Creado: desarrollador / dev123 (Rol: DEV)"))
 
-        # 2.2 Administrador de Clínica / Recepción
+        # 2.2 Administrador de Clínica
         if not User.objects.filter(username='admin').exists():
             u_admin = User.objects.create_user('admin', 'admin@consultorio.com', 'admin123')
             u_admin.first_name = 'Admin'
             u_admin.last_name = 'Consultorio'
             u_admin.is_staff = True
             u_admin.save()
-            self.stdout.write(self.style.SUCCESS("[OK] Usuario Admin Clínica creado: admin / admin123"))
+            PerfilUsuario.objects.create(user=u_admin, rol='ADMIN')
+            self.stdout.write(self.style.SUCCESS("[OK] Usuario Admin Clínica creado: admin / admin123 (Rol: ADMIN)"))
 
+        # 2.3 Recepción
         if not User.objects.filter(username='recepcion').exists():
             u_rec = User.objects.create_user('recepcion', 'recepcion@consultorio.com', 'recepcion123')
             u_rec.first_name = 'Recepción'
             u_rec.last_name = 'Central'
             u_rec.is_staff = True
             u_rec.save()
-            self.stdout.write(self.style.SUCCESS("[OK] Usuario Recepción creado: recepcion / recepcion123"))
+            PerfilUsuario.objects.create(user=u_rec, rol='RECEPCION')
+            self.stdout.write(self.style.SUCCESS("[OK] Usuario Recepción creado: recepcion / recepcion123 (Rol: RECEPCION)"))
 
         # 3. Sedes y Consultorios
         sede, _ = Sede.objects.get_or_create(
@@ -70,6 +77,7 @@ class Command(BaseCommand):
         if _:
             user_med1.set_password('medico123')
             user_med1.save()
+            PerfilUsuario.objects.create(user=user_med1, rol='MEDICO')
 
         medico1, _ = Medico.objects.get_or_create(
             user=user_med1,
@@ -87,6 +95,7 @@ class Command(BaseCommand):
         if _:
             user_med2.set_password('medico123')
             user_med2.save()
+            PerfilUsuario.objects.create(user=user_med2, rol='MEDICO')
 
         medico2, _ = Medico.objects.get_or_create(
             user=user_med2,
@@ -176,9 +185,9 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("[OK] Turnos de prueba e Historia Clínica inicial creados."))
         self.stdout.write(self.style.SUCCESS("\n========================================================"))
         self.stdout.write(self.style.SUCCESS("  ROLES Y ACCESOS ACTUALIZADOS"))
-        self.stdout.write(self.style.SUCCESS("  - DESARROLLADOR (Exclusivo Licencia/Cupos): desarrollador / dev123"))
-        self.stdout.write(self.style.SUCCESS("  - Admin Clínica: admin / admin123"))
-        self.stdout.write(self.style.SUCCESS("  - Recepción: recepcion / recepcion123"))
-        self.stdout.write(self.style.SUCCESS("  - Dr. Alejandro García (Cardiología): dr.garcia / medico123"))
-        self.stdout.write(self.style.SUCCESS("  - Dra. Sofía Martínez (Pediatría): dra.martinez / medico123"))
+        self.stdout.write(self.style.SUCCESS("  - DESARROLLADOR (Acceso Total): desarrollador / dev123"))
+        self.stdout.write(self.style.SUCCESS("  - ADMIN (Gestión Completa): admin / admin123"))
+        self.stdout.write(self.style.SUCCESS("  - RECEPCION (Turnos y Pacientes): recepcion / recepcion123"))
+        self.stdout.write(self.style.SUCCESS("  - MEDICO (Agenda y HC): dr.garcia / medico123"))
+        self.stdout.write(self.style.SUCCESS("  - MEDICO (Agenda y HC): dra.martinez / medico123"))
         self.stdout.write(self.style.SUCCESS("========================================================\n"))

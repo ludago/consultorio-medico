@@ -12,17 +12,26 @@ from apps.pacientes.models import Paciente
 from apps.turnos.models import Turno, EstadoTurno
 from apps.historias_clinicas.models import HistoriaClinica
 from apps.auditoria.models import LogAuditoria
+from .decorators import role_required, get_user_role
+
 
 def home_redirect(request):
     if not request.user.is_authenticated:
         return redirect('/accounts/login/')
     
-    # Redirigir a vista médico si es médico, o a recepción
-    if hasattr(request.user, 'perfil_medico'):
+    user_role = get_user_role(request.user)
+    
+    # Redirigir segun el rol del usuario
+    if user_role == 'MEDICO' or hasattr(request.user, 'perfil_medico'):
         return redirect('medico_agenda')
-    return redirect('recepcion_dashboard')
+    elif user_role in ['RECEPCION', 'ADMIN', 'DEV']:
+        return redirect('recepcion_dashboard')
+    else:
+        return redirect('recepcion_dashboard')
+
 
 @login_required
+@role_required(['RECEPCION', 'ADMIN', 'DEV'])
 def recepcion_dashboard(request):
     config = ConfiguracionSistema.get_solo()
     fecha_str = request.GET.get('fecha')
@@ -62,7 +71,9 @@ def recepcion_dashboard(request):
     }
     return render(request, 'recepcion/dashboard.html', context)
 
+
 @login_required
+@role_required(['RECEPCION', 'ADMIN', 'DEV'])
 def nuevo_turno(request):
     medicos = Medico.objects.filter(activo=True).prefetch_related('especialidades')
     pacientes = Paciente.objects.all().order_by('nombre_completo')
@@ -136,15 +147,21 @@ def nuevo_turno(request):
     }
     return render(request, 'recepcion/nuevo_turno.html', context)
 
+
 @login_required
+@role_required(['MEDICO', 'ADMIN', 'DEV'])
 def medico_agenda(request):
-    if not hasattr(request.user, 'perfil_medico'):
-        # Si no es médico pero es staff, permitir ver la agenda del primer médico demo
+    user_role = get_user_role(request.user)
+    
+    if user_role == 'MEDICO' and hasattr(request.user, 'perfil_medico'):
+        medico = request.user.perfil_medico
+    elif user_role in ['ADMIN', 'DEV']:
+        # Admin/DEV pueden ver el primer medico demo
         medico = Medico.objects.filter(activo=True).first()
         if not medico:
             return redirect('recepcion_dashboard')
     else:
-        medico = request.user.perfil_medico
+        return redirect('recepcion_dashboard')
 
     fecha_sel = datetime.date.today()
     turnos = Turno.objects.filter(medico=medico, fecha=fecha_sel).select_related('paciente', 'consultorio')
@@ -157,11 +174,21 @@ def medico_agenda(request):
     }
     return render(request, 'medicos/agenda.html', context)
 
+
 @login_required
+@role_required(['RECEPCION', 'MEDICO', 'ADMIN', 'DEV'])
 def cambiar_estado_turno(request, turno_id):
     if request.method == 'POST':
         nuevo_estado = request.POST.get('estado')
         turno = get_object_or_404(Turno, id=turno_id)
+        
+        user_role = get_user_role(request.user)
+        
+        # Verificar que el medico solo pueda cambiar sus propios turnos
+        if user_role == 'MEDICO':
+            if turno.medico != request.user.perfil_medico:
+                messages.error(request, 'No tiene permiso para modificar turnos de otros medicos')
+                return redirect('medico_agenda')
         
         if nuevo_estado in dict(EstadoTurno.choices):
             turno.estado = nuevo_estado
@@ -180,7 +207,9 @@ def cambiar_estado_turno(request, turno_id):
     next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or '/'
     return redirect(next_url)
 
+
 @login_required
+@role_required(['MEDICO', 'ADMIN', 'DEV'])
 def paciente_historia_clinica(request, paciente_id):
     paciente = get_object_or_404(Paciente, id=paciente_id)
     historias = HistoriaClinica.objects.filter(paciente=paciente).select_related('medico')
@@ -195,7 +224,14 @@ def paciente_historia_clinica(request, paciente_id):
         ip_origen=request.META.get('REMOTE_ADDR', '127.0.0.1')
     )
 
+    user_role = get_user_role(request.user)
+    
     if request.method == 'POST':
+        # Solo medicos pueden crear evoluciones clinicas
+        if user_role != 'MEDICO' and not hasattr(request.user, 'perfil_medico'):
+            messages.error(request, 'Solo los medicos pueden crear registros clinicos')
+            return redirect('paciente_historia_clinica', paciente_id=paciente.id)
+        
         # Agregar evolución clínica
         motivo = request.POST.get('motivo_consulta')
         diagnostico = request.POST.get('diagnostico')
@@ -229,6 +265,7 @@ def paciente_historia_clinica(request, paciente_id):
     }
     return render(request, 'pacientes/historia_clinica.html', context)
 
+
 def turnero_pantalla(request):
     """Vista pública para Smart TV / Sala de Espera"""
     hoy = datetime.date.today()
@@ -252,3 +289,4 @@ def turnero_pantalla(request):
         'hora_actual': timezone.now(),
     }
     return render(request, 'turnero/pantalla.html', context)
+

@@ -3,6 +3,45 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from apps.configuracion.models import ConfiguracionSistema
 
+
+class PerfilUsuario(models.Model):
+    """Extension del modelo User para control de roles y permisos."""
+
+    ROL_CHOICES = [
+        ('RECEPCION', 'Recepción'),
+        ('MEDICO', 'Médico'),
+        ('ADMIN', 'Administrador'),
+        ('DEV', 'Desarrollador'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil_usuario')
+    rol = models.CharField(max_length=20, choices=ROL_CHOICES, default='RECEPCION')
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Perfil de Usuario"
+        verbose_name_plural = "Perfiles de Usuarios"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.get_rol_display()}"
+
+    @property
+    def es_recepcion(self):
+        return self.rol == 'RECEPCION'
+
+    @property
+    def es_medico(self):
+        return self.rol == 'MEDICO'
+
+    @property
+    def es_admin(self):
+        return self.rol in ['ADMIN', 'DEV']
+
+    @property
+    def es_dev(self):
+        return self.rol == 'DEV'
+
+
 class Sede(models.Model):
     nombre = models.CharField(max_length=150)
     direccion = models.CharField(max_length=250)
