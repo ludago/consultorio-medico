@@ -61,7 +61,19 @@ class FacturaConsultaAdmin(admin.ModelAdmin):
         """Solo ADMIN y DEV pueden ver Facturas."""
         if not request.user.is_authenticated:
             return False
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol in ['ADMIN', 'DEV']:
+        if request.user.is_superuser:
             return True
+        perfil = getattr(request.user, 'perfil_usuario', None)
+        return perfil and perfil.rol in ['ADMIN', 'DEV']
+
+    def has_view_permission(self, request, obj=None):
+        return self.has_module_permission(request, obj)
+
+    def has_add_permission(self, request):
+        return self.has_module_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self.has_module_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser

@@ -10,7 +10,8 @@ class HistoriaClinicaAdmin(admin.ModelAdmin):
     readonly_fields = ('paciente', 'medico', 'fecha_consulta', 'motivo_consulta', 'diagnostico', 'notas_evolucion', 'tratamiento_prescrito', 'deleted_at')
 
     def diagnostico_corto(self, obj):
-        return obj.diagnostico[:50] + ("..." if len(obj.diagnostico) > 50 else "")
+        diagnostico = obj.diagnostico or ""
+        return diagnostico[:50] + ("..." if len(diagnostico) > 50 else "")
     diagnostico_corto.short_description = "Diagnóstico"
 
     def get_queryset(self, request):
