@@ -1,4 +1,5 @@
 from django.contrib import admin
+from apps.core.utils import safe_get_perfil
 from .models import HistoriaClinica
 
 
@@ -10,52 +11,37 @@ class HistoriaClinicaAdmin(admin.ModelAdmin):
     readonly_fields = ('paciente', 'medico', 'fecha_consulta', 'motivo_consulta', 'diagnostico', 'notas_evolucion', 'tratamiento_prescrito', 'deleted_at')
 
     def diagnostico_corto(self, obj):
-        diagnostico = obj.diagnostico or ""
-        return diagnostico[:50] + ("..." if len(diagnostico) > 50 else "")
-    diagnostico_corto.short_description = "Diagnóstico"
+        diagnostico = obj.diagnostico or ''
+        return diagnostico[:50] + ('...' if len(diagnostico) > 50 else '')
+    diagnostico_corto.short_description = 'Diagnostico'
 
     def get_queryset(self, request):
-        """Filtrar HC por medico si el usuario es medico, y excluir eliminadas."""
         qs = HistoriaClinica.all_with_deleted.all()
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        
-        # Dev ve todo
-        if request.user.is_superuser or (perfil and perfil.rol == 'DEV'):
+        if request.user.is_superuser:
             return qs
-        
-        # Medico solo ve sus HC activas
+        perfil = safe_get_perfil(request.user)
+        if perfil and perfil.rol == 'DEV':
+            return qs
         if perfil and perfil.rol == 'MEDICO' and hasattr(request.user, 'perfil_medico'):
             return qs.filter(medico=request.user.perfil_medico, is_deleted=False)
-        
-        # Admin ve todas las activas
         return qs.filter(is_deleted=False)
 
     def has_module_permission(self, request, obj=None):
-        """Solo MEDICO, ADMIN y DEV pueden ver Historias Clinicas."""
         if not request.user.is_authenticated:
             return False
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol in ['MEDICO', 'ADMIN', 'DEV']:
+        if request.user.is_superuser:
             return True
-        return request.user.is_superuser
+        perfil = safe_get_perfil(request.user)
+        return perfil and perfil.rol in ['MEDICO', 'ADMIN', 'DEV']
 
     def has_view_permission(self, request, obj=None):
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol in ['MEDICO', 'ADMIN', 'DEV']:
-            return True
-        return request.user.is_superuser
+        return self.has_module_permission(request, obj)
 
     def has_add_permission(self, request):
-        """Solo Medicos pueden crear HC (desde la vista, no desde admin)."""
         return False
 
     def has_change_permission(self, request, obj=None):
-        """Solo Medicos pueden editar HC."""
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol in ['MEDICO', 'ADMIN', 'DEV']:
-            return True
-        return request.user.is_superuser
+        return self.has_module_permission(request, obj)
 
     def has_delete_permission(self, request, obj=None):
-        """Solo DEV puede eliminar HC (soft delete)."""
         return request.user.is_superuser

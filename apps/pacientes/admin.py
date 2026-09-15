@@ -1,4 +1,5 @@
 from django.contrib import admin
+from apps.core.utils import safe_get_perfil
 from .models import ObraSocial, Paciente
 
 
@@ -8,12 +9,23 @@ class ObraSocialAdmin(admin.ModelAdmin):
     search_fields = ('nombre',)
 
     def has_module_permission(self, request, obj=None):
-        """Solo ADMIN y DEV pueden ver Obras Sociales."""
         if not request.user.is_authenticated:
             return False
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol in ['ADMIN', 'DEV']:
+        if request.user.is_superuser:
             return True
+        perfil = safe_get_perfil(request.user)
+        return perfil and perfil.rol in ['ADMIN', 'DEV']
+
+    def has_view_permission(self, request, obj=None):
+        return self.has_module_permission(request, obj)
+
+    def has_add_permission(self, request):
+        return self.has_module_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self.has_module_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
 
 
@@ -25,39 +37,30 @@ class PacienteAdmin(admin.ModelAdmin):
     readonly_fields = ('fecha_registro', 'deleted_at')
 
     def get_queryset(self, request):
-        """Mostrar solo pacientes activos por defecto."""
         qs = Paciente.all_with_deleted.get_queryset()
-        if request.user.is_superuser or (getattr(request.user, 'perfil_usuario', None) and request.user.perfil_usuario.rol == 'DEV'):
+        if request.user.is_superuser:
+            return qs
+        perfil = safe_get_perfil(request.user)
+        if perfil and perfil.rol == 'DEV':
             return qs
         return qs.filter(is_deleted=False)
 
     def has_module_permission(self, request, obj=None):
-        """Solo ADMIN y DEV pueden gestionar Pacientes."""
         if not request.user.is_authenticated:
             return False
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol in ['ADMIN', 'DEV']:
+        if request.user.is_superuser:
             return True
-        return request.user.is_superuser
+        perfil = safe_get_perfil(request.user)
+        return perfil and perfil.rol in ['ADMIN', 'DEV']
 
     def has_view_permission(self, request, obj=None):
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol in ['ADMIN', 'DEV']:
-            return True
-        return request.user.is_superuser
+        return self.has_module_permission(request, obj)
 
     def has_add_permission(self, request):
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol in ['ADMIN', 'DEV']:
-            return True
-        return request.user.is_superuser
+        return self.has_module_permission(request)
 
     def has_change_permission(self, request, obj=None):
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol in ['ADMIN', 'DEV']:
-            return True
-        return request.user.is_superuser
+        return self.has_module_permission(request, obj)
 
     def has_delete_permission(self, request, obj=None):
-        """Solo DEV puede eliminar pacientes."""
         return request.user.is_superuser

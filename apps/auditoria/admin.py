@@ -1,4 +1,5 @@
 from django.contrib import admin
+from apps.core.utils import safe_get_perfil
 from .models import LogAuditoria
 
 
@@ -10,19 +11,15 @@ class LogAuditoriaAdmin(admin.ModelAdmin):
     readonly_fields = ('timestamp', 'usuario', 'accion', 'entidad', 'entidad_id', 'detalles', 'ip_origen')
 
     def has_module_permission(self, request, obj=None):
-        """Solo ADMIN y DEV pueden ver Auditoria."""
         if not request.user.is_authenticated:
             return False
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol in ['ADMIN', 'DEV']:
+        if request.user.is_superuser:
             return True
-        return request.user.is_superuser
+        perfil = safe_get_perfil(request.user)
+        return perfil and perfil.rol in ['ADMIN', 'DEV']
 
     def has_view_permission(self, request, obj=None):
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol in ['ADMIN', 'DEV']:
-            return True
-        return request.user.is_superuser
+        return self.has_module_permission(request, obj)
 
     def has_add_permission(self, request):
         return False
