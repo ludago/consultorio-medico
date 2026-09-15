@@ -137,8 +137,8 @@ class Command(BaseCommand):
                     "telefono": pdata["telefono"],
                     "email": pdata["email"],
                     "obra_social": pdata["obra_social"],
-                    "consentimiento_datos": True,
-                    "consentimiento_ip": "192.168.1.50"
+                    "consentimiento_datos": False,  # Requiere consentimiento explícito (Ley 25.326)
+                    "consentimiento_ip": "192.168.1.50"  # IP de demostración
                 }
             )
             pacientes.append(p)

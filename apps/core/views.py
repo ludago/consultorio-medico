@@ -96,10 +96,19 @@ def nuevo_turno(request):
             dni = request.POST.get('nuevo_dni', '').strip()
             tel = request.POST.get('nuevo_telefono', '').strip()
             if nombre and dni and tel:
+                # Capturar IP real del paciente para consentimiento
+                ip_paciente = request.META.get('HTTP_X_FORWARDED_FOR')
+                if ip_paciente:
+                    ip_paciente = ip_paciente.split(',')[0].strip()
+                else:
+                    ip_paciente = request.META.get('REMOTE_ADDR', '127.0.0.1')
+                
                 paciente = Paciente.objects.create(
                     nombre_completo=nombre,
                     dni=dni,
                     telefono=tel,
+                    consentimiento_datos=False,  # Por defecto False, requiere consentimiento explícito
+                    consentimiento_ip=ip_paciente,
                 )
                 paciente_id = paciente.id
 

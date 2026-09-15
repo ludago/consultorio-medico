@@ -19,9 +19,17 @@ class ObraSocialAdmin(admin.ModelAdmin):
 
 @admin.register(Paciente)
 class PacienteAdmin(admin.ModelAdmin):
-    list_display = ('nombre_completo', 'dni', 'telefono', 'obra_social', 'proxima_fecha_recall', 'consentimiento_datos')
+    list_display = ('nombre_completo', 'dni', 'telefono', 'obra_social', 'proxima_fecha_recall', 'consentimiento_datos', 'is_deleted')
     search_fields = ('nombre_completo', 'dni', 'telefono', 'email')
-    list_filter = ('obra_social', 'consentimiento_datos')
+    list_filter = ('obra_social', 'consentimiento_datos', 'is_deleted')
+    readonly_fields = ('fecha_registro', 'deleted_at')
+
+    def get_queryset(self, request):
+        """Mostrar solo pacientes activos por defecto."""
+        qs = Paciente.all_with_deleted.get_queryset()
+        if request.user.is_superuser or (getattr(request.user, 'perfil_usuario', None) and request.user.perfil_usuario.rol == 'DEV'):
+            return qs
+        return qs.filter(is_deleted=False)
 
     def has_module_permission(self, request, obj=None):
         """Solo ADMIN y DEV pueden gestionar Pacientes."""

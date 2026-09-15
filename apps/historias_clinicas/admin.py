@@ -7,11 +7,27 @@ class HistoriaClinicaAdmin(admin.ModelAdmin):
     list_display = ('id', 'paciente', 'medico', 'fecha_consulta', 'diagnostico_corto', 'is_deleted')
     list_filter = ('is_deleted', 'fecha_consulta', 'medico')
     search_fields = ('paciente__nombre_completo', 'paciente__dni', 'diagnostico', 'motivo_consulta')
-    readonly_fields = ('paciente', 'medico', 'fecha_consulta', 'motivo_consulta', 'diagnostico', 'notas_evolucion', 'tratamiento_prescrito')
+    readonly_fields = ('paciente', 'medico', 'fecha_consulta', 'motivo_consulta', 'diagnostico', 'notas_evolucion', 'tratamiento_prescrito', 'deleted_at')
 
     def diagnostico_corto(self, obj):
         return obj.diagnostico[:50] + ("..." if len(obj.diagnostico) > 50 else "")
     diagnostico_corto.short_description = "Diagnóstico"
+
+    def get_queryset(self, request):
+        """Filtrar HC por medico si el usuario es medico, y excluir eliminadas."""
+        qs = HistoriaClinica.all_with_deleted.all()
+        perfil = getattr(request.user, 'perfil_usuario', None)
+        
+        # Dev ve todo
+        if request.user.is_superuser or (perfil and perfil.rol == 'DEV'):
+            return qs
+        
+        # Medico solo ve sus HC activas
+        if perfil and perfil.rol == 'MEDICO' and hasattr(request.user, 'perfil_medico'):
+            return qs.filter(medico=request.user.perfil_medico, is_deleted=False)
+        
+        # Admin ve todas las activas
+        return qs.filter(is_deleted=False)
 
     def has_module_permission(self, request, obj=None):
         """Solo MEDICO, ADMIN y DEV pueden ver Historias Clinicas."""
@@ -42,11 +58,3 @@ class HistoriaClinicaAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Solo DEV puede eliminar HC (soft delete)."""
         return request.user.is_superuser
-
-    def get_queryset(self, request):
-        """Filtrar HC por medico si el usuario es medico."""
-        qs = HistoriaClinica.all_with_deleted.all()
-        perfil = getattr(request.user, 'perfil_usuario', None)
-        if perfil and perfil.rol == 'MEDICO' and hasattr(request.user, 'perfil_medico'):
-            qs = qs.filter(medico=request.user.perfil_medico)
-        return qs

@@ -2,8 +2,10 @@ import datetime
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from apps.usuarios.models import Medico, Sede, Consultorio
 from apps.pacientes.models import Paciente
+
 
 class EstadoTurno(models.TextChoices):
     PENDIENTE = 'PENDIENTE', 'Pendiente'
@@ -13,29 +15,56 @@ class EstadoTurno(models.TextChoices):
     AUSENTE = 'AUSENTE', 'Ausente / No asistió'
     EN_ESPERA = 'EN_ESPERA', 'En Sala de Espera'
 
+
+class TurnoQuerySet(models.QuerySet):
+    def activos(self):
+        return self.filter(is_deleted=False)
+
+    def eliminados(self):
+        return self.filter(is_deleted=True)
+
+
+class TurnoManager(models.Manager):
+    def get_queryset(self):
+        return TurnoQuerySet(self.model, using=self._db).filter(is_deleted=False)
+
+    def eliminados(self):
+        return TurnoQuerySet(self.model, using=self._db).filter(is_deleted=True)
+
+    def todos_incluyendo_eliminados(self):
+        return TurnoQuerySet(self.model, using=self._db)
+
+
 class Turno(models.Model):
     medico = models.ForeignKey(Medico, on_delete=models.CASCADE, related_name='turnos')
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='turnos')
     sede = models.ForeignKey(Sede, on_delete=models.CASCADE, related_name='turnos')
     consultorio = models.ForeignKey(Consultorio, on_delete=models.SET_NULL, null=True, blank=True, related_name='turnos')
-    
+
     fecha = models.DateField()
     hora = models.TimeField()
     duracion_minutos = models.IntegerField(default=30)
-    
+
     estado = models.CharField(
-        max_length=20, 
-        choices=EstadoTurno.choices, 
+        max_length=20,
+        choices=EstadoTurno.choices,
         default=EstadoTurno.PENDIENTE
     )
-    
+
     notificado_wsp_medico = models.BooleanField(default=False)
     notificado_wsp_paciente = models.BooleanField(default=False)
     en_lista_espera = models.BooleanField(default=False, help_text="Anotado en lista de espera si se libera un turno")
-    
+
     creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     notas = models.TextField(blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    # Soft-delete Ley 26.529 (Retención 10 años mínimo)
+    is_deleted = models.BooleanField(default=False, help_text="Marca de borrado lógico para auditoría y cumplimiento legal")
+    deleted_at = models.DateTimeField(blank=True, null=True)
+
+    objects = TurnoManager()
+    all_with_deleted = models.Manager()
 
     class Meta:
         verbose_name = "Turno"
@@ -48,11 +77,9 @@ class Turno(models.Model):
     def clean(self):
         super().clean()
         if self.fecha and self.hora and self.medico_id:
-            # Calcular rangos de tiempo
             inicio_nuevo = datetime.datetime.combine(self.fecha, self.hora)
             fin_nuevo = inicio_nuevo + datetime.timedelta(minutes=self.duracion_minutos or 30)
 
-            # Buscar turnos existentes para el mismo médico que no estén cancelados
             turnos_existentes = Turno.objects.filter(
                 medico_id=self.medico_id,
                 fecha=self.fecha
@@ -65,7 +92,6 @@ class Turno(models.Model):
                 inicio_existente = datetime.datetime.combine(turno.fecha, turno.hora)
                 fin_existente = inicio_existente + datetime.timedelta(minutes=turno.duracion_minutos)
 
-                # Comprobar superposición
                 if max(inicio_nuevo, inicio_existente) < min(fin_nuevo, fin_existente):
                     raise ValidationError(
                         f"Superposición de horario: El Dr/a. {self.medico.nombre_completo} ya tiene un turno asignado "
@@ -75,6 +101,12 @@ class Turno(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+    def delete(self, using=None, keep_parents=False):
+        """Soft delete según Ley 26.529"""
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.save(using=using)
 
 class FacturaConsulta(models.Model):
     turno = models.OneToOneField(Turno, on_delete=models.CASCADE, related_name='factura')
